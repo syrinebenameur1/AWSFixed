@@ -25,3 +25,10 @@ logs/
 # Optional: if you use build output
 dist/
 build/
+node_modules
+uploads
+files
+.env
+npm-debug.log*
+.git
+.gitignore

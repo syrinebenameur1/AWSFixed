@@ -1,10 +1,10 @@
 // createTable.js
-const {
+import {
   DynamoDBClient,
   CreateTableCommand,
   DescribeTableCommand,
   waitUntilTableExists,
-} = require("@aws-sdk/client-dynamodb");
+} from "@aws-sdk/client-dynamodb";
 
 const TABLE_NAME = "Users";
 
