@@ -1,121 +1,213 @@
 // server.js
-require('dotenv').config();
-const express = require('express');
-const multer = require('multer');
-const fs = require('fs');
-const path = require('path');
-const cors = require('cors');
-const { v4: uuidv4 } = require('uuid');
-const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, PutCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
+import 'dotenv/config';
+import express from 'express';
+import multer from 'multer';
+import { v4 as uuidv4 } from 'uuid';
+import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
 
 const app = express();
-app.use(cors());
+const port = process.env.PORT || 4000;
+
+// Create necessary directories
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+const FILES_DIR = path.join(process.cwd(), 'files');
+const DB_FILE = path.join(process.cwd(), 'db.json');
+
+// Ensure directories exist
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
+if (!fs.existsSync(FILES_DIR)) fs.mkdirSync(FILES_DIR);
+if (!fs.existsSync(DB_FILE)) fs.writeFileSync(DB_FILE, JSON.stringify([]));
+
+// Middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Load env
-const isLocal = process.env.IS_LOCAL === 'true';
-const TABLE = process.env.DYNAMODB_TABLE || 'Users';
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
-
-// Ensure uploads folder
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR);
-}
-
-// DynamoDB Local / AWS config
-const dynamoClient = new DynamoDBClient({
-  region: isLocal ? 'local' : process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: isLocal ? 'fakeMyKeyId' : process.env.AWS_ACCESS_KEY,
-    secretAccessKey: isLocal ? 'fakeSecretAccessKey' : process.env.AWS_SECRET_KEY,
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, FILES_DIR);
   },
-  ...(isLocal && { endpoint: process.env.DYNAMODB_ENDPOINT || 'http://localhost:8000' }),
-});
-const dynamo = DynamoDBDocumentClient.from(dynamoClient);
-
-// Multer: keep file in memory then write to disk
-const upload = multer({ storage: multer.memoryStorage() });
-
-/**
- * POST /api/users
- *   - Saves uploaded file under /uploads
- *   - Creates an item in DynamoDB with file path
- */
-app.post('/api/users', upload.single('file'), async (req, res) => {
-  try {
-    const { email, username, age } = req.body;
-    const id = uuidv4();
-    const filename = `${Date.now()}_${req.file.originalname}`;
-    const filepath = path.join(UPLOADS_DIR, filename);
-
-    // Write file to disk
-    fs.writeFileSync(filepath, req.file.buffer);
-
-    // Store user + fileKey in DynamoDB
-    await dynamo.send(new PutCommand({
-      TableName: TABLE,
-      Item: { id, email, username, age: parseInt(age), fileKey: filename }
-    }));
-
-    res.json({ id, email, username, age, fileKey: filename });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur lors de la sauvegarde' });
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
   }
 });
 
-/**
- * GET /api/users
- *   - Returns all users from DynamoDB
- */
-app.get('/api/users', async (_, res) => {
-  try {
-    const data = await dynamo.send(new ScanCommand({ TableName: TABLE }));
-    res.json(data.Items);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur lors de la récupération des utilisateurs' });
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
   }
 });
 
-/**
- * GET /api/files
- *   - Lists all files in uploads folder
- */
-app.get('/api/files', (_, res) => {
+// Allow frontend access
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:8080'],
+  methods: ['GET', 'POST', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Accept']
+}));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log('\n=== New Request ===');
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  console.log('Headers:', req.headers);
+  if (req.method === 'POST') {
+    console.log('Body:', req.body);
+  }
+  next();
+});
+
+// Helper function to read/write to our JSON "database"
+const readDB = () => {
   try {
-    const files = fs.readdirSync(UPLOADS_DIR).map(filename => {
-      const stats = fs.statSync(path.join(UPLOADS_DIR, filename));
-      return { filename, lastModified: stats.mtime };
+    const data = fs.readFileSync(DB_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (err) {
+    console.error('Error reading database:', err);
+    return [];
+  }
+};
+
+const writeDB = (data) => {
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+    return true;
+  } catch (err) {
+    console.error('Error writing to database:', err);
+    return false;
+  }
+};
+
+// Check config
+console.log('\n=== Server Configuration ===');
+console.log("✅ Server running on port", port);
+console.log("✅ Uploads directory:", UPLOADS_DIR);
+console.log("✅ Files directory:", FILES_DIR);
+console.log("✅ Database file:", DB_FILE);
+console.log('===========================\n');
+
+// Serve static files
+app.use('/files', express.static(FILES_DIR));
+
+// Add a route to view database content
+app.get('/api/debug', (req, res) => {
+  try {
+    const db = readDB();
+    const files = fs.readdirSync(FILES_DIR);
+    res.json({
+      database: db,
+      files: files,
+      uploadsDir: fs.readdirSync(UPLOADS_DIR),
+      filesDir: fs.readdirSync(FILES_DIR)
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Upload route
+app.post("/upload", upload.single("file"), async (req, res) => {
+  console.log('\n=== Upload Request ===');
+  console.log('Request body:', req.body);
+  console.log('Request file:', req.file);
+
+  if (!req.file) {
+    console.error("❌ No file uploaded");
+    return res.status(400).json({ error: "No file uploaded." });
+  }
+
+  try {
+    // Save metadata to our JSON "database"
+    const db = readDB();
+    const newItem = {
+      id: uuidv4(),
+      filename: req.file.originalname,
+      path: req.file.filename,
+      uploadedAt: new Date().toISOString(),
+      email: req.body.email || '',
+      username: req.body.username || '',
+      age: req.body.age || ''
+    };
+
+    console.log('Saving new item to database:', newItem);
+    db.push(newItem);
+    
+    if (!writeDB(db)) {
+      throw new Error('Failed to write to database');
+    }
+
+    console.log('✅ Metadata saved to database. Current database:', db);
+    
+    // Send response with the new item
+    res.status(200).json({ 
+      message: "File uploaded successfully.",
+      data: newItem
+    });
+  } catch (err) {
+    console.error("❌ Error:", err);
+    // If there was an error, try to clean up the uploaded file
+    if (req.file) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupErr) {
+        console.error("Failed to clean up file:", cleanupErr);
+      }
+    }
+    res.status(500).json({ error: "Failed to upload file.", details: err.message });
+  }
+});
+
+// Get all users
+app.get("/api/users", async (req, res) => {
+  console.log('\n=== Fetching Users ===');
+  try {
+    const db = readDB();
+    console.log('✅ Users fetched:', db);
+    res.json(db);
+  } catch (err) {
+    console.error("❌ Error fetching users:", err);
+    res.status(500).json({ error: "Failed to fetch users", details: err.message });
+  }
+});
+
+// Get all files
+app.get("/api/files", async (req, res) => {
+  console.log('\n=== Fetching Files ===');
+  try {
+    const files = fs.readdirSync(FILES_DIR).map(filename => ({
+      Key: filename,
+      LastModified: fs.statSync(path.join(FILES_DIR, filename)).mtime
+    }));
+    console.log('✅ Files fetched:', files.length, 'files');
     res.json(files);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur lors de la récupération des fichiers' });
+    console.error("❌ Error fetching files:", err);
+    res.status(500).json({ error: "Failed to fetch files", details: err.message });
   }
 });
 
-/**
- * DELETE /api/files/:filename
- *   - Deletes a file from uploads folder
- */
-app.delete('/api/files/:filename', (req, res) => {
+// Delete file
+app.delete("/api/files/:key", async (req, res) => {
+  console.log('\n=== Deleting File ===');
+  console.log('Key:', req.params.key);
   try {
-    const filename = req.params.filename;
-    const filepath = path.join(UPLOADS_DIR, filename);
-    if (fs.existsSync(filepath)) {
-      fs.unlinkSync(filepath);
-      return res.json({ deleted: filename });
-    } else {
-      return res.status(404).json({ error: 'Fichier non trouvé' });
-    }
+    const filePath = path.join(FILES_DIR, req.params.key);
+    fs.unlinkSync(filePath);
+    
+    // Remove from database
+    const db = readDB();
+    const newDb = db.filter(item => item.path !== req.params.key);
+    writeDB(newDb);
+    
+    console.log('✅ File deleted successfully');
+    res.json({ message: "File deleted successfully" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur lors de la suppression' });
+    console.error("❌ Error deleting file:", err);
+    res.status(500).json({ error: "Failed to delete file", details: err.message });
   }
 });
 
-// Start the server
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+app.listen(port);

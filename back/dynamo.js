@@ -1,28 +1,47 @@
-// dynamo.js
-require('dotenv').config();
-const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+// createTable.js
 const {
-  DynamoDBDocumentClient,
-  ScanCommand,
-  PutCommand
-} = require('@aws-sdk/lib-dynamodb');
+  DynamoDBClient,
+  CreateTableCommand,
+  DescribeTableCommand,
+  waitUntilTableExists,
+} = require("@aws-sdk/client-dynamodb");
 
-const isLocal = process.env.IS_LOCAL === 'true';
+const TABLE_NAME = "Users";
 
 const client = new DynamoDBClient({
-  region: process.env.AWS_REGION,
+  region: "local",
+  endpoint: "http://localhost:8000",  // Make sure your local DynamoDB is here
   credentials: {
-    accessKeyId: isLocal ? 'fakeMyKeyId' : process.env.AWS_ACCESS_KEY,
-    secretAccessKey: isLocal ? 'fakeSecretAccessKey' : process.env.AWS_SECRET_KEY,
+    accessKeyId: "fakeMyKeyId",      // Fake keys for local DynamoDB
+    secretAccessKey: "fakeSecretAccessKey",
   },
-  ...(isLocal && {
-    endpoint: process.env.DYNAMODB_ENDPOINT || 'http://localhost:8000',
-  }),
 });
 
-const docClient = DynamoDBDocumentClient.from(client);
+async function createTable() {
+  try {
+    // Check if table already exists
+    await client.send(new DescribeTableCommand({ TableName: Users }));
+    console.log(`✅ Table "${TABLE_NAME}" already exists.`);
+  } catch (error) {
+    if (error.name === "ResourceNotFoundException") {
+      console.log("🔍 Table not found. Creating...");
+      const params = {
+        TableName: TABLE_NAME,
+        KeySchema: [{ AttributeName: "id", KeyType: "HASH" }],
+        AttributeDefinitions: [{ AttributeName: "id", AttributeType: "S" }],
+        ProvisionedThroughput: {
+          ReadCapacityUnits: 5,
+          WriteCapacityUnits: 5,
+        },
+      };
+      await client.send(new CreateTableCommand(params));
+      console.log("🛠️ Table creation started. Waiting for it to become ACTIVE...");
+      await waitUntilTableExists({ client, maxWaitTime: 20 }, { TableName: TABLE_NAME });
+      console.log("✅ Table is ACTIVE and ready to use!");
+    } else {
+      console.error("❌ Unexpected error:", error);
+    }
+  }
+}
 
-module.exports = {
-  scan: (params) => docClient.send(new ScanCommand(params)),
-  put: (params) => docClient.send(new PutCommand(params)),
-};
+createTable();
