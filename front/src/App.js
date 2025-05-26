@@ -20,6 +20,11 @@ import { CloudUpload, People, Folder, Delete } from '@mui/icons-material';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 
+// Add this constant at the top level
+const BACKEND_URL = window.location.port === '8080' 
+  ? 'http://host.docker.internal:4000'  // When running in Docker
+  : 'http://localhost:4000';            // When running locally
+
 function App() {
   const [users, setUsers] = useState([]);
   const [files, setFiles] = useState([]);
@@ -34,27 +39,74 @@ function App() {
       file: Yup.mixed().required('Fichier requis')
     }),
     onSubmit: async vals => {
-      const data = new FormData();
-      Object.entries(vals).forEach(([k, v]) => data.append(k, v));
-      await axios.post('http://localhost:4000/api/users', data);
-      alert('Envoyé !');
-      formik.resetForm();
+      try {
+        console.log('Form values:', vals);
+        const data = new FormData();
+        
+        // Add file first
+        if (vals.file) {
+          data.append('file', vals.file);
+        }
+        
+        // Then add other fields
+        data.append('email', vals.email);
+        data.append('username', vals.username);
+        data.append('age', vals.age);
+
+        console.log('FormData entries:');
+        for (let pair of data.entries()) {
+          console.log(pair[0], pair[1]);
+        }
+
+        const response = await axios.post(`${BACKEND_URL}/upload`, data, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Accept': 'application/json'
+          },
+          timeout: 30000 // 30 second timeout
+        });
+
+        console.log('Server response:', response.data);
+        
+        if (response.data.message) {
+          alert('Envoyé avec succès !');
+          formik.resetForm();
+          // Refresh the lists
+          fetchUsers();
+          fetchFiles();
+        } else {
+          throw new Error('Réponse invalide du serveur');
+        }
+      } catch (error) {
+        console.error('Error submitting form:', error);
+        if (error.response) {
+          // The request was made and the server responded with a status code
+          // that falls out of the range of 2xx
+          alert('Erreur: ' + (error.response.data?.error || error.response.statusText));
+        } else if (error.request) {
+          // The request was made but no response was received
+          alert('Pas de réponse du serveur. Vérifiez que le serveur est en cours d\'exécution.');
+        } else {
+          // Something happened in setting up the request that triggered an Error
+          alert('Erreur: ' + error.message);
+        }
+      }
     }
   });
 
   const fetchUsers = async () => {
-    const res = await axios.get('http://localhost:4000/api/users');
+    const res = await axios.get(`${BACKEND_URL}/api/users`);
     setUsers(res.data);
   };
 
   const fetchFiles = async () => {
-    const res = await axios.get('http://localhost:4000/api/files');
+    const res = await axios.get(`${BACKEND_URL}/api/files`);
     setFiles(res.data);
   };
 
   const delFile = async (key) => {
     try {
-      await axios.delete(`http://localhost:4000/api/files/${encodeURIComponent(key)}`);
+      await axios.delete(`${BACKEND_URL}/api/files/${encodeURIComponent(key)}`);
       fetchFiles();
       setDeleteKey('');
     } catch (err) {
@@ -62,8 +114,6 @@ function App() {
       alert('Erreur lors de la suppression');
     }
   };
-
-
 
   return (
     <Container maxWidth="sm" sx={{ py: 4 }}>
@@ -166,30 +216,30 @@ function App() {
       <Button onClick={fetchFiles} variant="outlined" startIcon={<Folder />} fullWidth sx={{ mb: 2 }}>
         Lister les fichiers
       </Button>
-<List>
-  {files.map(f => (
-    <ListItem
-      key={f.Key}
-      secondaryAction={
-        <IconButton
-          edge="end"
-          color="error"
-          onClick={() => delFile(f.Key)}
-        >
-          <Delete />
-        </IconButton>
-      }
-    >
-      <ListItemAvatar>
-        <Avatar><Folder /></Avatar>
-      </ListItemAvatar>
-      <ListItemText
-        primary={f.Key.split('/').pop()}
-        secondary={new Date(f.LastModified).toLocaleDateString()}
-      />
-    </ListItem>
-  ))}
-</List>
+      <List>
+        {files.map(f => (
+          <ListItem
+            key={f.Key}
+            secondaryAction={
+              <IconButton
+                edge="end"
+                color="error"
+                onClick={() => delFile(f.Key)}
+              >
+                <Delete />
+              </IconButton>
+            }
+          >
+            <ListItemAvatar>
+              <Avatar><Folder /></Avatar>
+            </ListItemAvatar>
+            <ListItemText
+              primary={f.Key.split('/').pop()}
+              secondary={new Date(f.LastModified).toLocaleDateString()}
+            />
+          </ListItem>
+        ))}
+      </List>
     </Container>
   );
 }
