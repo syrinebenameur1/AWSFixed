@@ -1,0 +1,38 @@
+
+services:
+  backend:
+    image: dockersyrine12/backend:latest
+    container_name: backend
+    ports:
+      - "4000:4000"
+    environment:
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY: fakeMyKeyId
+      AWS_SECRET_KEY: fakeSecretAccessKey
+      DYNAMODB_ENDPOINT: http://dynamodb:8000
+    depends_on:
+      - dynamodb
+    networks:
+      - app-network
+
+  frontend:
+    image: dockersyrine12/my-frontend:latest
+    container_name: frontend
+    ports:
+      - "8080:80"  # Assuming your frontend runs on port 80 inside the container
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  dynamodb:
+    image: amazon/dynamodb-local
+    container_name: dynamodb
+    ports:
+      - "8000:8000"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
