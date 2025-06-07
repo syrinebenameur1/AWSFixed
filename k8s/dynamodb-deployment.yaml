@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dynamodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dynamodb
+  template:
+    metadata:
+      labels:
+        app: dynamodb
+    spec:
+      containers:
+      - name: dynamodb
+        image: amazon/dynamodb-local
+        ports:
+        - containerPort: 8000
+        volumeMounts:
+        - name: dynamo-data
+          mountPath: /home/dynamodblocal/data
+      volumes:
+      - name: dynamo-data
+        persistentVolumeClaim:
+          claimName: dynamodb-pvc

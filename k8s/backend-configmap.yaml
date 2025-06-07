@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+data:
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY: fakeMyKeyId
+  AWS_SECRET_KEY: fakeSecretAccessKey
+  DYNAMODB_ENDPOINT: http://dynamodb-service:8000
