@@ -43,11 +43,10 @@ const upload = multer({
 });
 
 // Allow frontend access
-// server.js
 app.use(cors({
-  origin: ['http://localhost:3000','http://localhost:8080','http://localhost:30280','http://localhost:30001'],
-  methods: ['GET','POST','DELETE'],
-  allowedHeaders: ['Content-Type','Accept']
+  origin: ['http://localhost:3000', 'http://localhost:8080', 'http://localhost:30280', 'http://localhost:30001', 'http://localhost:31070'],
+  methods: ['GET', 'POST', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Accept']
 }));
 
 

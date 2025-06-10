@@ -17,7 +17,6 @@ spec:
     spec:
       containers:
         - name: backend
-          # <-- Replace this with your actual image reference:
           image: dockersyrine12/backend:latest
           imagePullPolicy: IfNotPresent
           ports:
@@ -32,9 +31,20 @@ spec:
             - name: DYNAMODB_TABLE
               value: "Users"
             - name: DYNAMODB_ENDPOINT
-              # Must use the SERVICE name + port in K8s, not localhost
               value: "http://dynamodb:8000"
             - name: IS_LOCAL
               value: "true"
             - name: PORT
               value: "4000"
+          volumeMounts:
+            - name: uploads-volume
+              mountPath: /app/uploads
+            - name: files-volume
+              mountPath: /app/files
+      volumes:
+        - name: uploads-volume
+          persistentVolumeClaim:
+            claimName: uploads-pvc
+        - name: files-volume
+          persistentVolumeClaim:
+            claimName: uploads-pvc
