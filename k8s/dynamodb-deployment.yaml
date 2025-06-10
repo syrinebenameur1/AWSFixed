@@ -1,7 +1,10 @@
+# File: k8s/dynamodb-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dynamodb
+  name: dynamodb-local
+  labels:
+    app: dynamodb
 spec:
   replicas: 1
   selector:
@@ -13,14 +16,14 @@ spec:
         app: dynamodb
     spec:
       containers:
-      - name: dynamodb
-        image: amazon/dynamodb-local
-        ports:
-        - containerPort: 8000
-        volumeMounts:
-        - name: dynamo-data
-          mountPath: /home/dynamodblocal/data
-      volumes:
-      - name: dynamo-data
-        persistentVolumeClaim:
-          claimName: dynamodb-pvc
+        - name: dynamodb
+          image: amazon/dynamodb-local
+          args:
+            - "-jar"
+            - "DynamoDBLocal.jar"
+            - "-inMemory"
+            - "-sharedDb"
+          # Expose port 8000 inside the pod
+          ports:
+            - containerPort: 8000
+          # No volume persistence here (in‐memory). If you want on‐disk, mount a HostPath or PVC.

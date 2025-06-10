@@ -20,10 +20,7 @@ import { CloudUpload, People, Folder, Delete } from '@mui/icons-material';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 
-// Add this constant at the top level
-const BACKEND_URL = window.location.port === '8080' 
-  ? 'http://host.docker.internal:4000'  // When running in Docker
-  : 'http://localhost:4000';            // When running locally
+const BACKEND_URL = '';
 
 function App() {
   const [users, setUsers] = useState([]);
@@ -58,7 +55,7 @@ function App() {
           console.log(pair[0], pair[1]);
         }
 
-        const response = await axios.post(`${BACKEND_URL}/upload`, data, {
+        const response = await axios.post(`${BACKEND_URL}/api/upload`, data, {
           headers: {
             'Content-Type': 'multipart/form-data',
             'Accept': 'application/json'

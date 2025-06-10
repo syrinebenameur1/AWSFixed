@@ -19,7 +19,7 @@ services:
     image: dockersyrine12/my-frontend:latest
     container_name: frontend
     ports:
-      - "8080:80"  # Assuming your frontend runs on port 80 inside the container
+      - "8080:80"  
     depends_on:
       - backend
     networks:

@@ -1,7 +1,10 @@
+# File: k8s/backend-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
+  labels:
+    app: backend
 spec:
   replicas: 1
   selector:
@@ -13,10 +16,25 @@ spec:
         app: backend
     spec:
       containers:
-      - name: backend
-        image: dockersyrine12/backend:latest
-        ports:
-        - containerPort: 4000
-        envFrom:
-        - configMapRef:
-            name: backend-config
+        - name: backend
+          # <-- Replace this with your actual image reference:
+          image: dockersyrine12/backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4000
+          env:
+            - name: AWS_REGION
+              value: "us-east-1"
+            - name: AWS_ACCESS_KEY
+              value: "fakeMyKeyId"
+            - name: AWS_SECRET_KEY
+              value: "fakeSecretAccessKey"
+            - name: DYNAMODB_TABLE
+              value: "Users"
+            - name: DYNAMODB_ENDPOINT
+              # Must use the SERVICE name + port in K8s, not localhost
+              value: "http://dynamodb:8000"
+            - name: IS_LOCAL
+              value: "true"
+            - name: PORT
+              value: "4000"

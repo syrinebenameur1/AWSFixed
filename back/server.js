@@ -43,11 +43,13 @@ const upload = multer({
 });
 
 // Allow frontend access
+// server.js
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:8080'],
-  methods: ['GET', 'POST', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Accept']
+  origin: ['http://localhost:3000','http://localhost:8080','http://localhost:30280','http://localhost:30001'],
+  methods: ['GET','POST','DELETE'],
+  allowedHeaders: ['Content-Type','Accept']
 }));
+
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -109,7 +111,7 @@ app.get('/api/debug', (req, res) => {
 });
 
 // Upload route
-app.post("/upload", upload.single("file"), async (req, res) => {
+app.post("/api/upload", upload.single("file"), async (req, res) => {
   console.log('\n=== Upload Request ===');
   console.log('Request body:', req.body);
   console.log('Request file:', req.file);

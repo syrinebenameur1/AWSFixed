@@ -1,11 +1,16 @@
+# File: k8s/backend-service.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: backend-service
+  name: backend
+  labels:
+    app: backend
 spec:
   selector:
     app: backend
   ports:
-    - port: 4000
-      targetPort: 4000
-  type: ClusterIP
+    - port: 4000        # the port the backend container is listening on
+      targetPort: 4000  # map to containerPort 4000
+      protocol: TCP
+      nodePort: 30001   # expose on host node at port 30001
+  type: NodePort       # ← changed from ClusterIP to NodePort

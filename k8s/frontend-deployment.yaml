@@ -1,7 +1,10 @@
+# File: k8s/frontend-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
+  labels:
+    app: frontend
 spec:
   replicas: 1
   selector:
@@ -13,7 +16,16 @@ spec:
         app: frontend
     spec:
       containers:
-      - name: frontend
-        image: dockersyrine12/my-frontend:latest
-        ports:
-        - containerPort: 80
+        - name: frontend
+          image: dockersyrine12/my-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          env:
+            # Make sure the frontend knows where the backend lives. 
+            # If your React app uses window.location.port logic (8080 vs  (set at build time)), 
+            # you might need to rebuild the frontend with the correct BACKEND_URL pointing to http://backend:4000.
+            - name: REACT_APP_BACKEND_URL
+              value: "http://backend:4000"
+          # In Nginx + React, there’s no dynamic environment reading client-side; 
+          # typically one would bake the API URL at build time, e.g. `npm run build` with REACT_APP_BACKEND_URL injected.

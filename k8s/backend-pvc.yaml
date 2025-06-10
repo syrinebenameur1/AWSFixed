@@ -1,0 +1,13 @@
+# File: k8s/backend-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backend-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: "" 
+  # On Docker Desktop or Minikube, if no default StorageClass, you may omit storageClassName.

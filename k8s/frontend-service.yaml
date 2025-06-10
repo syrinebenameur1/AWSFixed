@@ -1,12 +1,21 @@
+# File: k8s/frontend-service.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: frontend-service
+  name: frontend
+  labels:
+    app: frontend
 spec:
   selector:
     app: frontend
   ports:
     - port: 80
       targetPort: 80
-      
+      protocol: TCP
+      # If you want to expose to your local machine: change type to NodePort and add nodePort: 30000 (for example)
   type: NodePort
+  # optional: specify nodePort (e.g. 30000). If omitted, Kubernetes assigns one automatically.
+  # ports:
+  #   - port: 80
+  #     targetPort: 80
+  #     nodePort: 30000
