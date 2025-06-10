@@ -1,0 +1,49 @@
+server:
+  extraArgs:
+    - --insecure
+  config:
+    url: https://argocd-server.argocd.svc.cluster.local
+    admin.enabled: "true"
+  service:
+    type: NodePort
+    nodePortHttp: 30081
+    nodePortHttps: 30444
+  ingress:
+    enabled: false  # Disable ingress since we're using NodePort
+
+configs:
+  secret:
+    argocdServerAdminPassword: "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZag0u4p5rY5Z2y5l5dQy5Qy5Qy5Qy"
+  cm:
+    timeout.reconciliation: 180s
+    url: https://localhost:30444
+
+repoServer:
+  serviceAccount:
+    create: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+applicationSet:
+  enabled: true
+
+notifications:
+  enabled: true
+
+dex:
+  enabled: false
+
+redis:
+  enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi 

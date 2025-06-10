@@ -1,0 +1,33 @@
+server:
+  service:
+    type: NodePort
+    nodePorts:
+      http: 31998
+      https: 31999
+    port: 443
+    nodePort: 31999
+  extraArgs:
+    - --insecure
+  config:
+    admin.enabled: "true"
+    url: https://localhost:8080
+    admin.password: "$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0H7g19K"
+    admin.passwordMtime: "2025-06-10T16:30:00Z"
+  ingress:
+    enabled: false
+
+configs:
+  secret:
+    argocdServerAdminPassword: "$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0H7g19K"
+    argocdServerAdminPasswordMtime: "2025-06-10T16:30:00Z"
+
+repoServer:
+  serviceAccount:
+    create: true
+    name: argocd-repo-server
+
+applicationSet:
+  enabled: true
+
+notifications:
+  enabled: true 
