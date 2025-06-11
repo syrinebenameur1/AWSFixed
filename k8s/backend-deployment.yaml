@@ -43,8 +43,6 @@ spec:
               mountPath: /app/files
       volumes:
         - name: uploads-volume
-          persistentVolumeClaim:
-            claimName: uploads-pvc
+          emptyDir: {}
         - name: files-volume
-          persistentVolumeClaim:
-            claimName: uploads-pvc
+          emptyDir: {}
